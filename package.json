@@ -1,0 +1,26 @@
+{
+  "name": "waya",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "offline": "nodemon index.js",
+    "start": "pm2 start app.js --instances 1 --max-memory-restart 100M --watch",
+    "scale-up": "pm2 scale app +1 --max-memory-restart 100M --instances 1",
+    "scale-down": "pm2 scale app -1"
+
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.0",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0",
+    "mongoose": "^7.1.0",
+    "morgan": "^1.10.0",
+    "nodemailer": "^6.9.1",
+    "nodemon": "^2.0.22"
+  }
+}
