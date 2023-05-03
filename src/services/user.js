@@ -38,11 +38,13 @@ const signup = async (req, res) => {
       wallet,
       verificationCode,
     });
+    console.log(newUser)
     await newUser.save();
-    // Send verification email
+    // Send verification email if user is created successfully
+
 
     const mailOptions = {
-      from: "Registrar@daystar.ac.ke",
+      from: '"process.env.EMAIL_USER" noreply@waya.com',
       to: email,
       subject: 'Email Verification',
       text: `Your verification code is ${verificationCode}.`,

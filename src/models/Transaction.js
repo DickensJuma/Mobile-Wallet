@@ -1,9 +1,20 @@
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
-  walletId: {
+  email: {
     type: String,
-    required: true,
+
+  },
+  fromUserId: { 
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+
+
+  },
+  toUserId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+
   },
   amount: {
     type: Number,

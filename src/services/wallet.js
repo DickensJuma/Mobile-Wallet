@@ -1,38 +1,22 @@
-
-
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
-const Wallet = require('../models/Wallet');
 
 
 const getWalletInfo = async (req, res) => {
     try {
-        const { walletId, amount, currency, reference } = req.body;
+        const { email } = req.body;
     
-        // Find the wallet with the specified ID
-        const wallet = await Wallet.findOne({ _id: walletId });
-        if (!wallet) {
-          return res.status(400).json({ message: 'Wallet not found' });
+        // Find the user with the specified ID
+        const user = await User.findOne({ email });
+        if (!user) {
+          return res.status(400).json({ message: 'user not found' });
         }
     
-        // Update the wallet balance
-        wallet.balance[currency] += amount;
-    
-        // Create a new transaction
-        const transaction = new Transaction({
-          walletId,
-          amount,
-          currency,
-          type: 'credit',
-          status: 'success',
-          reference,
-        });
-    
-        // Save the wallet and transaction objects to the database
-        await wallet.save();
-        await transaction.save();
-    
-        res.json({ message: 'Transaction successful' });
+     
+        //user,wallet
+
+        res.status(200).json({ wallet: user.wallet });
+       
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal server error' });
@@ -42,7 +26,7 @@ const getWalletInfo = async (req, res) => {
 
 const walletWithdraw = async (req, res) => {
     
-  const { walletId, currency, amount } = req.body;
+  const { email, currency, amount } = req.body;
   const { userId } = req.user;
 
   // Check if the user has made more than 2 transactions in the last 2 minutes
@@ -68,10 +52,14 @@ const walletWithdraw = async (req, res) => {
   }
 
   try {
-    const wallet = await Wallet.findOne({ walletId });
-    if (!wallet) {
-      return res.status(404).json({ message: 'Wallet not found' });
+   
+    
+    // Find the user with the specified ID
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'user not found' });
     }
+    let wallet =user.wallet;
 
     const balance = wallet.balance.get(currency) || 0;
     if (balance < amount) {
@@ -85,7 +73,7 @@ const walletWithdraw = async (req, res) => {
     // Record the transaction
     const transaction = new Transaction({
       userId,
-      walletId,
+      email,
       type: 'withdraw',
       currency,
       amount,
@@ -109,8 +97,8 @@ const walletTransfer = async (req, res) => {
         return res.status(400).json({ message: 'Invalid user ID' });
       }
   
-      const fromWallet = await Wallet.findOne({ userId: fromUserId });
-      const toWallet = await Wallet.findOne({ userId: toUserId });
+      const fromWallet = fromUser.wallet;
+      const toWallet = toUser.wallet;
   
       if (!fromWallet || !toWallet) {
         return res.status(400).json({ message: 'One or both users do not have a wallet' });
@@ -127,9 +115,14 @@ const walletTransfer = async (req, res) => {
         amount,
         timestamp: new Date()
       });
+      function updateBalance(amount, transaction) {
+        this.balance += amount;
+        this.transactions.push(transaction);
+        return this.save();
+      }
   
-      const updatedFromWallet = await fromWallet.updateBalance(-amount, transaction);
-      const updatedToWallet = await toWallet.updateBalance(amount, transaction);
+      const updatedFromWallet = updateBalance(amount * -1, transaction.bind(fromWallet))
+      const updatedToWallet =  updateBalance(amount, transaction.bind(toWallet))
   
       return res.status(200).json({ message: 'Transfer successful', fromWallet: updatedFromWallet, toWallet: updatedToWallet });
     } catch (error) {
@@ -140,20 +133,24 @@ const walletTransfer = async (req, res) => {
 
  const  walletCredit = async (req, res) => {
     try {
-      const { walletId, amount, currency, reference } = req.body;
+      const {email, amount, currency, reference } = req.body;
   
-      // Find the wallet with the specified ID
-      const wallet = await Wallet.findOne({ _id: walletId });
-      if (!wallet) {
-        return res.status(400).json({ message: 'Wallet not found' });
+      // Find the user with the specified ID
+
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(400).json({ message: 'user not found' });
       }
-  
+      let wallet =user.wallet;
       // Update the wallet balance
       wallet.balance[currency] += amount;
+
+    //  update user wallet
+      user.wallet = wallet;
   
       // Create a new transaction
       const transaction = new Transaction({
-        walletId,
+        email,
         amount,
         currency,
         type: 'credit',
@@ -162,7 +159,8 @@ const walletTransfer = async (req, res) => {
       });
   
       // Save the wallet and transaction objects to the database
-      await wallet.save();
+      await user.save();
+    
       await transaction.save();
   
       res.json({ message: 'Transaction successful' });
@@ -176,13 +174,15 @@ const walletTransfer = async (req, res) => {
 
     try {
       // Check if user is authenticated
-      if (!req.session.user) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
+
+      // if (!req.session.user) {
+      //   return res.status(401).json({ message: 'Unauthorized' });
+      // }
+
   
       // Get user and wallet information
       const user = await User.findById(req.session.user._id);
-      const wallet = await Wallet.findOne({ owner: user._id });
+      const wallet = user.wallet;
   
       // Check if wallet exists
       if (!wallet) {
@@ -220,7 +220,9 @@ const walletTransfer = async (req, res) => {
       // Update wallet balance and transaction status
       wallet.balance += transaction.amount;
       transaction.reversed = true;
-      await wallet.save();
+
+      user.wallet = wallet;
+      await user.save();
       await transaction.save();
   
       // Return success message
